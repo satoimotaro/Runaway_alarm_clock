@@ -5,26 +5,28 @@
 #include <TimerOne.h>
 
 SerialComm comm;
-Sensor     senU{ 8, 7 }; // up
-Sensor     senD{ 8, 7 }; // down
-Sensor     senL{ 8, 7 }; // left
-Sensor     senR{ 8, 7 }; // right
-Encoder    enc1{ 2, 3 };
-Encoder    enc2{ 4, 12 };
+// Sensor     senU{ 8, 7 }; // up
+// Sensor     senD{ 8, 7 }; // down
+// Sensor     senL{ 8, 7 }; // left
+// Sensor     senR{ 8, 7 }; // right
+Encoder    enc1{ 2, 4 };
+Encoder    enc2{ 3, 5 };
 
 //Pin definitions
-#define MOTOR1_PIN1 5
-#define MOTOR1_PIN2 6
-#define MOTOR1_PWM   11
+#define MOTOR1_PIN1 7
+#define MOTOR1_PIN2 8
+#define MOTOR1_PWM   6
 #define MOTOR2_PIN1 9
 #define MOTOR2_PIN2 10
-#define MOTOR2_PWM   4
+#define MOTOR2_PWM   11
 
 //PID parameters
-#define KP 2.0
-#define KI 0.0
-#define KD 0.0
-#define DT_us 100000
+#define KP 2.5
+#define KI 0.03
+#define KD 0.4
+#define DT_us 50000
+
+#define mm_cnt 8.1
 
 int x = 0;
 int y = 0;
@@ -42,11 +44,13 @@ int I1 = 0;
 int I2 = 0;
 void PIDcontrol() {
     // ここにPID
-    Serial.print(currentcnt1);
+    Serial.print(x);
     Serial.print(","); 
-    Serial.println(currentcnt2);
+    Serial.println(y);
     currentcnt1 = enc1.getCount();
-    // currentcnt2 = enc2.getCount();
+    currentcnt2 = enc2.getCount();
+    x = (currentcnt1 + currentcnt2) / (2 * mm_cnt);
+    y = (currentcnt2 - currentcnt1) / (2 * mm_cnt);
     int P1 = targetcnt1 - currentcnt1;
     int P2 = targetcnt2 - currentcnt2;
     I1 += P1*(DT_us/100000);
@@ -78,6 +82,12 @@ void PIDcontrol() {
     }
 }
 
+void moveXY(int tarx, int tary) {
+    // ここにXY移動のためのモーター制御
+    targetcnt1 = (int)((tarx - tary) * mm_cnt);
+    targetcnt2 = (int)((tarx + tary) * mm_cnt);
+}
+
 void setup() {
     Timer1.initialize(DT_us); // ここに割り込みの周期を設定　1000000=1s
     Timer1.attachInterrupt(PIDcontrol);
@@ -89,11 +99,11 @@ void setup() {
     // senL.begin();
     // senR.begin();
     enc1.begin();
-    // enc2.begin();
+    enc2.begin();
 
     Serial.begin(9600);
-    targetcnt1 = 500;
-    targetcnt2 = 100;
+    targetcnt1 = 300;
+    targetcnt2 = 300;
 }
 
 void loop() {
@@ -111,6 +121,13 @@ void loop() {
     // x = comm.getX();
     // y = comm.getY();
     // speed = comm.getSpeed();
+    if(Serial.available()){
+        String inputx = Serial.readStringUntil('\n');
+        String inputy = Serial.readStringUntil('\n');
+        int distancex = inputx.toInt();
+        int distancey = inputy.toInt();
+        moveXY(distancex, distancey);
+    }
 
     delay(100);
 }
