@@ -2,29 +2,34 @@
 #define SERIAL_COMM_H
 
 #include <Arduino.h>
+#include <SoftwareSerial.h>
 
 class SerialComm {
 public:
     void begin(int baud);
     void sendData();
     void readData();
-    void setUp(int value);
-    void setDown(int value);
-    void setLeft(int value);
-    void setRight(int value);
+    void readFromSoftwareSerial();
+    void setCurrentPosition(int x, int y);
+    void setMoveFlag(bool flag);
     int  getX();
     int  getY();
     int  getSpeed();
+    bool getMoveFlag();
 
 private:
-    int up = 0;
-    int down = 0;
-    int left = 0;
-    int right = 0;
+    int sensor1 = 0;
+    int sensor2 = 0;
+    int sensor3 = 0;
+    int sensor4 = 0;
 
-    int x = 0;
-    int y = 0;
+    int targetx = 0;
+    int targety = 0;
     int speed = 0;
+    int currentx = 0;
+    int currenty = 0;
+    bool move_flag = false;
+    SoftwareSerial mySerial{8, 7}; // RX, TX
 };
 
 #endif
