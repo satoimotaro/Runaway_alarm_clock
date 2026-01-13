@@ -18,10 +18,10 @@ Encoder    enc2{ 3, 9 };
 #define Switch_PIN  A7
 
 //PID parameters
-#define KP 2.5
-#define KI 0.3
-#define KD 0.4
-#define DT_us 50000
+#define KP 1.5
+#define KI 0.1
+#define KD 0.3
+#define DT_us 2000 // 200Hz
 #define CONVERJENCE_THRESHOLD 10
 
 #define mm_cnt 8.1
@@ -57,7 +57,7 @@ void PIDcontrol() {
     currenty = (currentcnt2 - currentcnt1) / (2 * mm_cnt);
     int P1 = targetcnt1 - currentcnt1;
     int P2 = targetcnt2 - currentcnt2;
-    float alpha = 0.1;
+    float alpha = 0.2;
     alpha = alpha/(1 + alpha);
     I1 += P1*(DT_us/100000);
     I2 += P2*(DT_us/100000);
@@ -112,7 +112,7 @@ void setup() {
     Timer1.initialize(DT_us); // ここに割り込みの周期を設定　1000000=1s
     Timer1.attachInterrupt(PIDcontrol);
 
-    comm.begin(9600);
+    comm.begin(115200);
 
     enc1.begin();
     enc2.begin();
@@ -129,6 +129,16 @@ void setup() {
     targetcnt2 = 0;
 
     comm.setMoveFlag(true);
+
+    speed = 100;
+    moveXY(50,50);
+    delay(2000);
+    enc1.reset();
+    enc2.reset();
+    moveXY(-50,-50);
+    delay(2000);
+    enc1.reset();
+    enc2.reset();
 }
 
 void loop() {
@@ -145,5 +155,5 @@ void loop() {
         comm.setMoveFlag(false);
         Serial.println("Button Pressed! Stopping...");
     }
-    delay(100);
+    delay(20);
 }

@@ -6,7 +6,7 @@
 
 class SerialComm {
 public:
-    void begin(int baud);
+    void begin(uint32_t baud);
     void sendData();
     void readData();
     void readFromSoftwareSerial();

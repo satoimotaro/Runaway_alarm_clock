@@ -30,19 +30,20 @@ long getDistance(int trigPin, int echoPin) {
  
 void setup() { 
   Serial.begin(9600); 
-  mySerial.begin(9600);
+  mySerial.begin(115200);
   for (int i = 0; i < 4; i++) { 
     pinMode(trigPins[i], OUTPUT); 
     pinMode(echoPins[i], INPUT); 
   } 
 } 
  
+#define delay_sc 5
 void loop() { 
   long distances[4]; 
  
   for (int i = 0; i < 4; i++) { 
     distances[i] = getDistance(trigPins[i], echoPins[i]); 
-    delay(20); // センサー間の干渉防止のための短い待ち時間 
+    delay(delay_sc); // センサー間の干渉防止のための短い待ち時間 
   } 
  
   // 結果出力 (CSV形式) 
@@ -55,6 +56,4 @@ void loop() {
     mySerial.print(distances[1]); mySerial.print(",");
     mySerial.print(distances[2]); mySerial.print(",");
     mySerial.println(distances[3]);
-
-    delay(20); 
 }

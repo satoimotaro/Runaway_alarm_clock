@@ -1,14 +1,14 @@
 #include "SerialComm.h"
 
-void SerialComm::begin(int baud) {
+void SerialComm::begin(uint32_t baud) {
     Serial.begin(baud);
-    mySerial.begin(9600);
+    mySerial.begin(baud);
     currentx = 0;
     currenty = 0;
-    sensor1 = 999;
-    sensor2 = 999;
-    sensor3 = 999;
-    sensor4 = 999;
+    sensor1 = 99;
+    sensor2 = 99;
+    sensor3 = 99;
+    sensor4 = 99;
     move_flag = false;
 }
 
