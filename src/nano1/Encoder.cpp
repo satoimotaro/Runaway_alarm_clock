@@ -15,10 +15,10 @@ void Encoder::begin() {
 
     if (intNum == 0) { // INT0 (D2)
         _instance0 = this;
-        attachInterrupt(intNum, Encoder::isr0, RISING);
+        attachInterrupt(intNum, Encoder::isr0, CHANGE);
     } else if (intNum == 1) { // INT1 (D3)
         _instance1 = this;
-        attachInterrupt(intNum, Encoder::isr1, RISING);
+        attachInterrupt(intNum, Encoder::isr1, CHANGE);
     }
 }
 
