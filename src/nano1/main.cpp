@@ -16,6 +16,7 @@ Encoder    enc2{ 3, 9 };
 #define MOTOR2_PIN2 A3
 #define MOTOR2_PWM   6
 #define Switch_PIN  A7
+#define ALARM_PIN 11
 
 //PID parameters
 #define KP 1.5
@@ -33,6 +34,8 @@ int targety = 0;
 int speed = 200;
 int distance = 0;
 
+int volume = 128;
+
 // PID制御用変数
 int targetcnt1 = 0;
 int targetcnt2 = 0;
@@ -44,11 +47,18 @@ int I1 = 0;
 int I2 = 0;
 int D_term1 = 0;
 int D_term2 = 0;
+
+int button_count = 0;
 void PIDcontrol() {
     if(!comm.getMoveFlag()){
-        analogWrite(MOTOR1_PWM, 0);
-        analogWrite(MOTOR2_PWM, 0);
-        return;
+        if(button_count > (int)1000000/DT_us){
+            analogWrite(MOTOR1_PWM, 0);
+            analogWrite(MOTOR2_PWM, 0);
+            return;
+        } else {
+            button_count ++;
+            analogWrite(ALARM_PIN,0);
+        }
     }
     // ここにPID
     currentcnt1 = enc1.getCount();
@@ -124,14 +134,21 @@ void setup() {
     pinMode(MOTOR2_PIN2, OUTPUT);
     pinMode(MOTOR2_PWM, OUTPUT);
     pinMode(Switch_PIN, INPUT);
+    pinMode(ALARM_PIN, OUTPUT);
 
     targetcnt1 = 0;
     targetcnt2 = 0;
 
     comm.setMoveFlag(true);
+    button_count = 0;
+    volume = 128;
 
     speed = 100;
-    moveXY(50,50);
+    moveXY(60,0);
+    delay(2000);
+    enc1.reset();
+    enc2.reset();
+    moveXY(0,60);
     delay(2000);
     enc1.reset();
     enc2.reset();
@@ -142,18 +159,20 @@ void setup() {
 }
 
 void loop() {
-    if(comm.getMoveFlag() == true){
+    if(button_count < (int)1000000/DT_us){
+        analogWrite(ALARM_PIN,volume);
         comm.readData();
         comm.readFromSoftwareSerial();
         speed = comm.getSpeed();
         moveXY(comm.getX(), comm.getY());
         comm.setCurrentPosition(currentx, currenty);
         comm.sendData();
+    } else {
+        Serial.println("stopping...");
     }
     if(analogRead(Switch_PIN) < 300 && comm.getMoveFlag() == true){
         // リセット処理
         comm.setMoveFlag(false);
-        Serial.println("Button Pressed! Stopping...");
     }
     delay(20);
 }
