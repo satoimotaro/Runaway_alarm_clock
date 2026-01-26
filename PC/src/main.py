@@ -40,9 +40,11 @@ def main():
             continue
 
         current_x, current_y, a,b,c,d, flag = data
-
         target_x, target_y, speed = calc_displacement(current_x, current_y, a,b,c,d)
+        
         comm.send_move(target_x, target_y, speed)
+        
+        # t += 1
 
         # target_x = float(input("target_x = "))
         # target_y = float(input("target_y = "))

@@ -23,7 +23,7 @@ Encoder    enc2{ 3, 9 };
 #define KI 0.1
 #define KD 0.3
 #define DT_us 2000 // 200Hz
-#define CONVERJENCE_THRESHOLD 10
+#define CONVERGENCE_THRESHOLD 10
 
 #define mm_cnt 8.1
 
@@ -41,12 +41,18 @@ int targetcnt1 = 0;
 int targetcnt2 = 0;
 int currentcnt1 = 0;
 int currentcnt2 = 0;
+int prevcnt1 = 0;
+int prevcnt2 = 0;
 int PrevP1 = 0;
 int PrevP2 = 0;
 int I1 = 0;
 int I2 = 0;
 int D_term1 = 0;
 int D_term2 = 0;
+bool convergence = true;
+int stall_count1 = 0;
+int stall_count2 = 0;
+int out1,out2;
 
 int button_count = 0;
 void PIDcontrol() {
@@ -79,11 +85,23 @@ void PIDcontrol() {
     PrevP2 = P2;
     int output1 = KP * P1 + KI * I1 + KD * D_term1;
     int output2 = KP * P2 + KI * I2 + KD * D_term2;
-    if(abs(P1) < CONVERJENCE_THRESHOLD && abs(P2) < CONVERJENCE_THRESHOLD){
+    if(abs(P1) < CONVERGENCE_THRESHOLD && abs(P2) < CONVERGENCE_THRESHOLD){
         // 到達判定
         output1 = 0;
         output2 = 0;
+        convergence = true;
     }
+    out1 = output1; out2 = output2;
+    if(output1 != 0 && (currentcnt1 - prevcnt1) == 0){
+      stall_count1 ++;
+    } else stall_count1 = 0;
+    if(output2 != 0 && (currentcnt2 - prevcnt2) == 0){
+      stall_count2 ++;
+    } else stall_count2 = 0;
+    prevcnt1 = currentcnt1;
+    prevcnt2 = currentcnt2;
+   //  if(stall_count1 > 100) output1 = 0;
+   //  if(stall_count2 > 100) output2 = 0;
     // モーター制御
     if (output1 >= 0) {
         analogWrite(MOTOR1_PWM, min(output1, speed));
@@ -105,8 +123,9 @@ void PIDcontrol() {
     }
 }
 
-void moveXY(int tarx, int tary) {
+void moveXY(int tarx, int tary, bool force_apply = false) {
     // ここにXY移動のためのモーター制御
+    if(!force_apply && !convergence) return;
     if(targetx == tarx && targety == tary)return;
     targetcnt1 = (int)((tarx - tary) * mm_cnt);
     targetcnt2 = (int)((tarx + tary) * mm_cnt);
@@ -138,24 +157,26 @@ void setup() {
 
     targetcnt1 = 0;
     targetcnt2 = 0;
+    convergence = true;
 
     comm.setMoveFlag(true);
     button_count = 0;
     volume = 128;
 
     speed = 100;
-    moveXY(60,0);
-    delay(2000);
+   //  moveXY(50,0,true);
+   //  delay(2000);
+   //  enc1.reset();
+   //  enc2.reset();
+   //  moveXY(0,50,true);
+   //  delay(2000);
+   //  enc1.reset();
+   //  enc2.reset();
+   //  moveXY(-50,-55,true);
+   //  delay(2000);
     enc1.reset();
     enc2.reset();
-    moveXY(0,60);
-    delay(2000);
-    enc1.reset();
-    enc2.reset();
-    moveXY(-50,-50);
-    delay(2000);
-    enc1.reset();
-    enc2.reset();
+    delay(100);
 }
 
 void loop() {
