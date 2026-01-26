@@ -5,28 +5,25 @@ import numpy as np
 # =========================
 alpha = 100.0
 rho = 0.8
+
 speed_min = 60
 speed_max = 255
 
-d_safe = 40.0
+d_safe = 60.0
 d_min  = 10.0
 
-# 横逃げ
-gamma_turn = 0.5
+# 横逃げ強度
+gamma_turn = 0.01
 
-# 慣性
-vel_rho = 0.7
+# 慣性LPF
+vel_rho = 0.2
 
-# =========================
-# 出力減衰（ソフト番・自己保護）
-# =========================
-output_norm_th = 0.8
-decay_down = 2.0
-decay_up   = 0.8
-decay_min  = 0.25
+# 減衰
+alpha_parallel = 0.7
+alpha_perp = 1.2
 
 # =========================
-# センサ方向
+# センサ方向（正規化）
 # =========================
 dirs = {
     "LU": np.array([ 1.0, -1.0]),
@@ -42,13 +39,14 @@ for k in dirs:
 # =========================
 dist_f_prev = {k: None for k in dirs}
 v_prev = np.zeros(2)
-output_decay = 1.0
+v_prev_pal = np.zeros(2)
+v_rd = np.zeros(2)
 
 # =========================
 # メイン
 # =========================
 def calc_displacement(current_x, current_y, LU, RU, RD, LD):
-    global dist_f_prev, v_prev, output_decay
+    global dist_f_prev, v_prev, v_rd, v_prev_pal
 
     # -------------------------
     # 距離LPF
@@ -62,9 +60,18 @@ def calc_displacement(current_x, current_y, LU, RU, RD, LD):
         else:
             dist[k] = rho * dist_f_prev[k] + (1 - rho) * dist_raw[k]
         dist_f_prev[k] = dist[k]
+    no_threat = all(dist[k] >= d_safe for k in dist)
+    if no_threat:
+        v_prev *= 0.8
+        v_rd = 0
+
+        if np.linalg.norm(v_prev) < 1e-3:
+            v_prev[:] = 0
+            return current_x, current_y, 0
+
 
     # -------------------------
-    # 手からの反発
+    # 手からの反発（勾配型）
     # -------------------------
     v_hand = np.zeros(2)
     d_closest = 1e6
@@ -73,42 +80,60 @@ def calc_displacement(current_x, current_y, LU, RU, RD, LD):
         d = dist[k]
         if d <= 0 or d >= d_safe:
             continue
-        w = (d_safe - d) / d_safe
+
+        # 正規化距離勾配（非線形）
+        x = (d_safe - d) / d_safe
+        w = x * x   # 2乗で近距離を強調
+
         v_hand += w * dirs[k]
         d_closest = min(d_closest, d)
 
-    v_escape = -v_hand
-
-    # 横逃げ
-    if np.linalg.norm(v_escape) > 1e-6:
-        v_perp = np.array([-v_escape[1], v_escape[0]])
-        v_escape = v_escape + gamma_turn * v_perp
+    # 主逃げ方向
+    v_parallel = -v_hand
+    v_perp = 0
 
     # -------------------------
-    # 出力強度に基づく減衰（壁非依存）
+    # 横逃げ（手ベクトル基準 + 上下バランス）
     # -------------------------
-    out_norm = np.linalg.norm(v_escape)
+    n = np.linalg.norm(v_hand)
+    if n > 1e-6:
+        hand_dir = v_hand / n
+        tangent = np.array([-hand_dir[1], hand_dir[0]])
 
-    if out_norm > output_norm_th:
-        output_decay *= decay_down
-    else:
-        output_decay += decay_up
+        # 左右差
+        side_lr = (dist["RU"] + dist["RD"]) - (dist["LU"] + dist["LD"])
+        # 上下差（追加）
+        side_ud = (dist["LD"] + dist["RD"]) - (dist["LU"] + dist["RU"])
+        if(current_y > 0):side_lr*= -1
+        if(current_x > 0):side_ud*= -1 
+        
+        # 合成判定
+        side = side_lr - 0.5 * side_ud
 
-    output_decay = np.clip(output_decay, decay_min, 1.0)
+        v_perp += gamma_turn * np.tanh(side / d_safe) * tangent
 
-    v_total = v_escape * output_decay
+    # -------------------------
+    # 減衰
+    # -------------------------
+    if(np.linalg.norm(v_parallel - v_prev_pal) < 1e-1):
+        v_rd = 0
+        print("direction changed")
+    v_rd += v_parallel*(1 - alpha_parallel)
+    v_parallel -= v_rd
+    v_perp *= alpha_perp
+    v_prev_pal = v_parallel
+    v_escape = v_parallel + v_perp
 
-    norm = np.linalg.norm(v_total)
+    # -------------------------
+    # 慣性（正規化前）
+    # -------------------------
+    v_prev = vel_rho * v_prev + (1 - vel_rho) * v_escape
+
+    norm = np.linalg.norm(v_prev)
     if norm < 1e-6:
         return current_x, current_y, 0
 
-    dir_vec = v_total / norm
-
-    # -------------------------
-    # 慣性
-    # -------------------------
-    v_prev = vel_rho * v_prev + (1 - vel_rho) * dir_vec
-    v_dir = v_prev / (np.linalg.norm(v_prev) + 1e-6)
+    v_dir = v_prev / norm
 
     # -------------------------
     # 速度

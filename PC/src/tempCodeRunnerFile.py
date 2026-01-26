@@ -1,5 +1,0 @@
-        # target_x = float(input("target_x = "))
-        # target_y = float(input("target_y = "))
-        # speed = float(input("speed = "))
-        # xy_values, sensor_values = comm.read_data()
-        # target_x, target_y, speed = calc_displacement(xy_values, sensor_values)
